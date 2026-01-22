@@ -168,11 +168,6 @@
         .play-pause-btn.hidden {
             display: none;
         }
-        /* Try to hide YouTube suggestion overlays - limited due to iframe restrictions */
-        /* Note: CSS in this page cannot style elements inside the YouTube iframe due to cross-origin restrictions */
-        /* The .ytp-pause-overlay class is inside the iframe, so this won't work: */
-        /* .ytp-pause-overlay { display: none; } */
-        /* Instead, we try to inject CSS into the iframe via JavaScript (see hideVideoOverlays function) */
         #youtube-player {
             overflow: hidden;
         }
@@ -249,7 +244,6 @@
         let playerReady = false;
         let playerLoaded = false;
         let isPlaying = false;
-        let overlayHideInterval = null;
 
         if (!videoId) {
             document.body.textContent = 'Missing video ID parameter. Use ?v=VIDEO_ID';
@@ -364,11 +358,6 @@
                                 // YT.PlayerState.PLAYING = 1, YT.PlayerState.PAUSED = 2, YT.PlayerState.ENDED = 0
                                 isPlaying = (event.data === YT.PlayerState.PLAYING);
                                 updatePlayPauseButton();
-
-                                // When paused, try to hide overlays
-                                if (event.data === YT.PlayerState.PAUSED || event.data === YT.PlayerState.ENDED) {
-                                    hideVideoOverlays();
-                                }
                             },
                             onError: function(event) {
                                 console.error('YouTube player error:', event.data);
@@ -436,95 +425,10 @@
                 }
             }
 
-            // Function to hide video overlays (suggestions)
-            function hideVideoOverlays() {
-                if (!player || !playerReady) return;
-
-                try {
-                    const iframe = player.getIframe();
-                    if (iframe) {
-                        // Try to inject CSS to hide overlays (limited effectiveness due to iframe restrictions)
-                        // Note: This may not work due to cross-origin restrictions, but we try anyway
-                        try {
-                            const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
-                            // Try to hide common overlay selectors
-                            const style = iframeDoc.createElement('style');
-                            style.textContent = `
-                                .ytp-pause-overlay,
-                                .ytp-endscreen-content,
-                                .ytp-ce-element,
-                                .ytp-pause-overlay-container,
-                                .ytp-suggested-action,
-                                .ytp-endscreen-next,
-                                .html5-endscreen,
-                                .ytp-ce-shadow,
-                                .ytp-ce-overlay,
-                                .ytp-pause-overlay-container,
-                                [class*="pause-overlay"],
-                                [class*="endscreen"],
-                                [class*="suggested"],
-                                [id*="endscreen"],
-                                [id*="suggested"],
-                                [id*="pause-overlay"] {
-                                    display: none !important;
-                                    visibility: hidden !important;
-                                    opacity: 0 !important;
-                                    pointer-events: none !important;
-                                }
-                            `;
-                            if (!iframeDoc.head.querySelector('style[data-overlay-hide]')) {
-                                style.setAttribute('data-overlay-hide', 'true');
-                                iframeDoc.head.appendChild(style);
-                            }
-                        } catch (e) {
-                            // Cross-origin restriction - can't access iframe content
-                            // This is expected and normal
-                        }
-
-                        // Alternative: Try to refresh the frame slightly to reduce overlay persistence
-                        const currentTime = player.getCurrentTime();
-                        if (currentTime > 0.1) {
-                            // Very small seek (0.01 seconds) to refresh without noticeable jump
-                            player.seekTo(currentTime + 0.01, true);
-                            setTimeout(() => {
-                                if (!isPlaying) {
-                                    player.pauseVideo();
-                                }
-                            }, 50);
-                        }
-                    }
-                } catch (e) {
-                    // Silently fail - overlays are hard to control
-                }
-            }
-
             // Play/pause button click handler
             playPauseBtn.onclick = function() {
-                if (!playerLoaded) {
-                    loadYouTubePlayer();
-                    // Wait for player to be ready before toggling
-                    const checkReady = setInterval(function() {
-                        if (playerReady && player) {
-                            clearInterval(checkReady);
-                            setTimeout(function() {
-                                togglePlayPause();
-                            }, 500);
-                        }
-                    }, 100);
-                } else {
-                    togglePlayPause();
-                }
+                togglePlayPause();
             };
-
-            // Periodically try to hide overlays when paused (every 1 second for better effectiveness)
-            setInterval(function() {
-                if (playerReady && player && !isPlaying) {
-                    hideVideoOverlays();
-                }
-            }, 1000);
-
-            // Also try to hide overlays immediately when state changes to paused
-            // This is handled in onStateChange callback
         }
     </script>
 </body>
