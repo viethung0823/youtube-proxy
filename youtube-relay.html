@@ -45,6 +45,9 @@
             const start = urlParams.get('start') || '0';
             const autoplay = urlParams.get('autoplay') || '0';
             
+            // If start time is provided and > 0, autoplay by default
+            const shouldAutoplay = autoplay === '1' || (parseInt(start) > 0 && autoplay !== '0');
+            
             // Build YouTube embed URL with correct origin
             const currentOrigin = window.location.origin;
             const widgetId = Math.floor(Math.random() * 100).toString();
@@ -53,7 +56,7 @@
             embedUrl.searchParams.set('enablejsapi', '1');
             embedUrl.searchParams.set('origin', currentOrigin);
             embedUrl.searchParams.set('start', start);
-            embedUrl.searchParams.set('autoplay', autoplay);
+            embedUrl.searchParams.set('autoplay', shouldAutoplay ? '1' : '0');
             embedUrl.searchParams.set('rel', '0');
             embedUrl.searchParams.set('modestbranding', '1');
             embedUrl.searchParams.set('playsinline', '1');
