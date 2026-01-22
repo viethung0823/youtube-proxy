@@ -14,6 +14,8 @@
         html, body {
             width: 100%;
             height: 100%;
+            margin: 0;
+            padding: 0;
             background: #000;
             overflow: auto;
             position: relative;
@@ -26,9 +28,28 @@
             flex: 1;
             min-height: 0;
             display: none;
+            position: relative;
         }
         #youtube-player.loaded {
             display: block;
+        }
+        /* Ensure YouTube API creates full-size player */
+        #youtube-player > div {
+            width: 100% !important;
+            height: 100% !important;
+            position: relative !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+        #youtube-player iframe {
+            width: 100% !important;
+            height: 100% !important;
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
+            border: 0 !important;
+            margin: 0 !important;
+            padding: 0 !important;
         }
         .thumbnail-container {
             width: 100%;
@@ -220,7 +241,15 @@
 
                     // Use YouTube iframe API - same as in your component
                     // This uses the same API that doesn't show ads
+                    // Get container dimensions - YouTube API needs pixel values
+                    const container = document.getElementById('youtube-player');
+                    // Use viewport dimensions if container not yet sized
+                    const width = container.offsetWidth || window.innerWidth;
+                    const height = container.offsetHeight || Math.floor(width * 9 / 16); // 16:9 aspect ratio
+                    
                     player = new YT.Player('youtube-player', {
+                        width: width,
+                        height: height,
                         videoId: videoId,
                         playerVars: {
                             enablejsapi: 1,
@@ -239,6 +268,15 @@
                                 const iframe = event.target.getIframe();
                                 if (iframe) {
                                     iframe.setAttribute('referrerpolicy', 'strict-origin-when-cross-origin');
+                                    // Ensure iframe fills container
+                                    iframe.style.width = '100%';
+                                    iframe.style.height = '100%';
+                                }
+                                // Ensure the wrapper div also fills container
+                                const wrapper = container.querySelector('div');
+                                if (wrapper) {
+                                    wrapper.style.width = '100%';
+                                    wrapper.style.height = '100%';
                                 }
 
                                 // If timestamp is provided and start is 0, seek to timestamp on ready (but don't autoplay)
