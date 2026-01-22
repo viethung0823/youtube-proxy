@@ -127,6 +127,41 @@
         .go-to-reference-btn.hidden {
             display: none;
         }
+        .play-pause-btn {
+            padding: 0.625rem 1.25rem;
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: white;
+            border: none;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            margin: 1rem auto;
+            width: fit-content;
+        }
+        .play-pause-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(59, 130, 246, 0.4);
+            background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);
+        }
+        .play-pause-btn:active {
+            transform: translateY(0);
+        }
+        .play-pause-btn.hidden {
+            display: none;
+        }
+        /* Hide YouTube suggestion overlays when paused */
+        #youtube-player iframe {
+            pointer-events: auto;
+        }
+        /* Try to hide overlays using CSS - YouTube uses iframe so we can't directly target, 
+           but we can use JavaScript to send commands */
     </style>
 </head>
 <body>
@@ -143,6 +178,12 @@
     <button id="go-to-reference-btn" class="go-to-reference-btn hidden">
         <span>🎯</span>
         <span>Go to reference</span>
+    </button>
+
+    <!-- Play/Pause toggle button - below the player -->
+    <button id="play-pause-btn" class="play-pause-btn hidden">
+        <span id="play-pause-icon">⏸️</span>
+        <span id="play-pause-text">Pause</span>
     </button>
 
     <!-- Load YouTube iframe API -->
@@ -190,6 +231,8 @@
         let player = null;
         let playerReady = false;
         let playerLoaded = false;
+        let isPlaying = false;
+        let overlayHideInterval = null;
 
         if (!videoId) {
             document.body.textContent = 'Missing video ID parameter. Use ?v=VIDEO_ID';
@@ -202,6 +245,9 @@
             const thumbnailImage = document.getElementById('thumbnail-image');
             const playerContainer = document.getElementById('youtube-player');
             const goToBtn = document.getElementById('go-to-reference-btn');
+            const playPauseBtn = document.getElementById('play-pause-btn');
+            const playPauseIcon = document.getElementById('play-pause-icon');
+            const playPauseText = document.getElementById('play-pause-text');
 
             // Set thumbnail image URL (max quality)
             thumbnailImage.src = `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
@@ -246,7 +292,7 @@
                     // Use viewport dimensions if container not yet sized
                     const width = container.offsetWidth || window.innerWidth;
                     const height = container.offsetHeight || Math.floor(width * 9 / 16); // 16:9 aspect ratio
-                    
+
                     player = new YT.Player('youtube-player', {
                         width: width,
                         height: height,
@@ -256,9 +302,13 @@
                             origin: currentOrigin,
                             start: startSeconds,
                             autoplay: 0,
-                            rel: 0,
+                            rel: 0, // Don't show related videos from other channels
                             modestbranding: 1,
                             playsinline: 1,
+                            iv_load_policy: 3, // Hide video annotations
+                            controls: 1, // Show player controls
+                            fs: 1, // Allow fullscreen
+                            cc_load_policy: 0, // Hide captions by default
                         },
                         events: {
                             onReady: function(event) {
@@ -279,9 +329,24 @@
                                     wrapper.style.height = '100%';
                                 }
 
+                                // Show play/pause button
+                                playPauseBtn.classList.remove('hidden');
+                                updatePlayPauseButton();
+
                                 // If timestamp is provided and start is 0, seek to timestamp on ready (but don't autoplay)
                                 if (timestamp !== null && timestamp > 0 && startSeconds === 0) {
                                     event.target.seekTo(timestamp, false); // false = don't autoplay
+                                }
+                            },
+                            onStateChange: function(event) {
+                                // Track play state
+                                // YT.PlayerState.PLAYING = 1, YT.PlayerState.PAUSED = 2, YT.PlayerState.ENDED = 0
+                                isPlaying = (event.data === YT.PlayerState.PLAYING);
+                                updatePlayPauseButton();
+                                
+                                // When paused, try to hide overlays
+                                if (event.data === YT.PlayerState.PAUSED || event.data === YT.PlayerState.ENDED) {
+                                    hideVideoOverlays();
                                 }
                             },
                             onError: function(event) {
@@ -327,6 +392,72 @@
             thumbnailContainer.onclick = function() {
                 loadYouTubePlayer();
             };
+
+            // Function to update play/pause button appearance
+            function updatePlayPauseButton() {
+                if (isPlaying) {
+                    playPauseIcon.textContent = '⏸️';
+                    playPauseText.textContent = 'Pause';
+                } else {
+                    playPauseIcon.textContent = '▶️';
+                    playPauseText.textContent = 'Play';
+                }
+            }
+
+            // Function to toggle play/pause
+            function togglePlayPause() {
+                if (!playerReady || !player) return;
+
+                if (isPlaying) {
+                    player.pauseVideo();
+                } else {
+                    player.playVideo();
+                }
+            }
+
+            // Function to hide video overlays (suggestions)
+            function hideVideoOverlays() {
+                if (!player || !playerReady) return;
+                
+                try {
+                    // Try to send commands to hide overlays
+                    // Note: YouTube's iframe API has limited control over overlays
+                    // We can try to seek slightly to refresh the frame and reduce overlay persistence
+                    const currentTime = player.getCurrentTime();
+                    if (currentTime > 0.1) {
+                        // Small seek to refresh frame (this sometimes helps reduce overlay persistence)
+                        player.seekTo(currentTime, true);
+                        player.pauseVideo();
+                    }
+                } catch (e) {
+                    console.log('Could not hide overlays:', e);
+                }
+            }
+
+            // Play/pause button click handler
+            playPauseBtn.onclick = function() {
+                if (!playerLoaded) {
+                    loadYouTubePlayer();
+                    // Wait for player to be ready before toggling
+                    const checkReady = setInterval(function() {
+                        if (playerReady && player) {
+                            clearInterval(checkReady);
+                            setTimeout(function() {
+                                togglePlayPause();
+                            }, 500);
+                        }
+                    }, 100);
+                } else {
+                    togglePlayPause();
+                }
+            };
+
+            // Periodically try to hide overlays when paused (every 2 seconds)
+            setInterval(function() {
+                if (playerReady && player && !isPlaying) {
+                    hideVideoOverlays();
+                }
+            }, 2000);
         }
     </script>
 </body>
