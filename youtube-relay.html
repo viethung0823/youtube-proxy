@@ -17,68 +17,164 @@
             background: #000;
             overflow: hidden;
             position: fixed;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         }
-        iframe {
+        #youtube-player {
             width: 100%;
             height: 100%;
-            border: 0;
-            display: block;
+        }
+        .go-to-reference-btn {
             position: absolute;
-            top: 0;
-            left: 0;
+            top: 10px;
+            right: 10px;
+            z-index: 1000;
+            padding: 0.625rem 1.25rem;
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            color: white;
+            border: none;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .go-to-reference-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(245, 158, 11, 0.4);
+            background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+        }
+        .go-to-reference-btn:active {
+            transform: translateY(0);
+        }
+        .go-to-reference-btn.hidden {
+            display: none;
         }
     </style>
 </head>
 <body>
-    <iframe
-        id="youtube-iframe"
-        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
-        allowfullscreen
-        referrerpolicy="strict-origin-when-cross-origin"
-    ></iframe>
+    <div id="youtube-player"></div>
+    <button id="go-to-reference-btn" class="go-to-reference-btn hidden">
+        <span>🎯</span>
+        <span>Go to reference</span>
+    </button>
+    
+    <!-- Load YouTube iframe API -->
+    <script src="https://www.youtube.com/iframe_api"></script>
     
     <script>
-        // Get video ID from URL parameter
+        // Helper function to extract timestamp from URL or time string
+        function extractTimestamp(url) {
+            if (!url) return null;
+
+            // First, check if it's a time format like "1:17" or "1:23:45"
+            const timeMatch = url.match(/^(\d+):(\d+)(?::(\d+))?$/);
+            if (timeMatch) {
+                const hours = timeMatch[3] ? parseInt(timeMatch[1]) : 0;
+                const minutes = timeMatch[3] ? parseInt(timeMatch[2]) : parseInt(timeMatch[1]);
+                const seconds = timeMatch[3] ? parseInt(timeMatch[3]) : parseInt(timeMatch[2]);
+                const totalSeconds = hours * 3600 + minutes * 60 + seconds;
+                return totalSeconds;
+            }
+
+            // Check URL parameter patterns
+            const patterns = [
+                /[?&]t=(\d+)s?/,
+                /[?&]start=(\d+)/,
+                /#t=(\d+)s?/,
+                /[?&]time_continue=(\d+)/,
+            ];
+
+            for (const pattern of patterns) {
+                const match = url.match(pattern);
+                if (match) {
+                    return parseInt(match[1]);
+                }
+            }
+
+            return null;
+        }
+
+        // Get parameters from URL
         const urlParams = new URLSearchParams(window.location.search);
         const videoId = urlParams.get('v');
+        const timestampParam = urlParams.get('timestamp') || urlParams.get('t');
+        const startParam = urlParams.get('start') || '0';
         
+        let player = null;
+        let playerReady = false;
+
         if (!videoId) {
             document.body.textContent = 'Missing video ID parameter. Use ?v=VIDEO_ID';
             document.body.style.color = '#fff';
             document.body.style.padding = '20px';
             document.body.style.fontFamily = 'Arial, sans-serif';
         } else {
-            // Get optional parameters
-            const start = urlParams.get('start') || '0';
-            const autoplay = urlParams.get('autoplay') || '0';
+            // Show "Go to reference" button if timestamp is provided
+            const timestamp = extractTimestamp(timestampParam);
+            const goToBtn = document.getElementById('go-to-reference-btn');
             
-            // If start time is provided and > 0, autoplay by default
-            const shouldAutoplay = autoplay === '1' || (parseInt(start) > 0 && autoplay !== '0');
+            if (timestamp !== null && timestamp > 0) {
+                goToBtn.classList.remove('hidden');
+                goToBtn.onclick = function() {
+                    if (playerReady && player) {
+                        player.seekTo(timestamp, true);
+                        player.playVideo();
+                        console.log('Seeking to timestamp:', timestamp);
+                    }
+                };
+            }
+
+            // Wait for YouTube API to load
+            function onYouTubeIframeAPIReady() {
+                const currentOrigin = window.location.origin;
+                const startSeconds = parseInt(startParam) || 0;
+                
+                // Use YouTube iframe API - same as in your component
+                // This uses the same API that doesn't show ads
+                player = new YT.Player('youtube-player', {
+                    videoId: videoId,
+                    playerVars: {
+                        enablejsapi: 1,
+                        origin: currentOrigin,
+                        start: startSeconds,
+                        autoplay: 0,
+                        rel: 0,
+                        modestbranding: 1,
+                        playsinline: 1,
+                    },
+                    events: {
+                        onReady: function(event) {
+                            playerReady = true;
+                            console.log('YouTube player ready in relay');
+                            // Set referrer policy on the iframe
+                            const iframe = event.target.getIframe();
+                            if (iframe) {
+                                iframe.setAttribute('referrerpolicy', 'strict-origin-when-cross-origin');
+                            }
+                            
+                            // If timestamp is provided and start is 0, seek to timestamp on ready
+                            if (timestamp !== null && timestamp > 0 && startSeconds === 0) {
+                                event.target.seekTo(timestamp, true);
+                            }
+                        },
+                        onError: function(event) {
+                            console.error('YouTube player error:', event.data);
+                        }
+                    }
+                });
+            }
             
-            // Build YouTube embed URL with correct origin
-            const currentOrigin = window.location.origin;
-            const widgetId = Math.floor(Math.random() * 100).toString();
-            
-            const embedUrl = new URL(`https://www.youtube.com/embed/${videoId}`);
-            embedUrl.searchParams.set('enablejsapi', '1');
-            embedUrl.searchParams.set('origin', currentOrigin);
-            embedUrl.searchParams.set('start', start);
-            embedUrl.searchParams.set('autoplay', shouldAutoplay ? '1' : '0');
-            embedUrl.searchParams.set('rel', '0'); // Don't show related videos
-            embedUrl.searchParams.set('modestbranding', '1'); // Minimal YouTube branding
-            embedUrl.searchParams.set('playsinline', '1'); // Play inline on mobile
-            embedUrl.searchParams.set('controls', '1'); // Show player controls
-            embedUrl.searchParams.set('showinfo', '0'); // Hide video info
-            embedUrl.searchParams.set('iv_load_policy', '3'); // Hide annotations
-            embedUrl.searchParams.set('cc_load_policy', '0'); // Don't show captions by default
-            embedUrl.searchParams.set('fs', '1'); // Allow fullscreen
-            embedUrl.searchParams.set('widgetid', widgetId);
-            embedUrl.searchParams.set('forigin', currentOrigin + '/');
-            embedUrl.searchParams.set('aoriginsup', '1');
-            embedUrl.searchParams.set('vf', '6');
-            
-            // Set iframe src
-            document.getElementById('youtube-iframe').src = embedUrl.toString();
+            // If API is already loaded
+            if (window.YT && window.YT.Player) {
+                onYouTubeIframeAPIReady();
+            } else {
+                // Wait for API to load
+                window.onYouTubeIframeAPIReady = onYouTubeIframeAPIReady;
+            }
         }
     </script>
 </body>
