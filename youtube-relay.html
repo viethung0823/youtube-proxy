@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
+    <title>YouTube Embed Relay</title>
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            overflow: hidden;
+        }
+        iframe {
+            width: 100%;
+            height: 100%;
+            border: 0;
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <iframe
+        id="youtube-iframe"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+        allowfullscreen
+        referrerpolicy="strict-origin-when-cross-origin"
+    ></iframe>
+    
+    <script>
+        // Get video ID from URL parameter
+        const urlParams = new URLSearchParams(window.location.search);
+        const videoId = urlParams.get('v');
+        
+        if (!videoId) {
+            document.body.textContent = 'Missing video ID parameter. Use ?v=VIDEO_ID';
+            document.body.style.color = '#fff';
+            document.body.style.padding = '20px';
+            document.body.style.fontFamily = 'Arial, sans-serif';
+        } else {
+            // Get optional parameters
+            const start = urlParams.get('start') || '0';
+            const autoplay = urlParams.get('autoplay') || '0';
+            
+            // Build YouTube embed URL with correct origin
+            const currentOrigin = window.location.origin;
+            const widgetId = Math.floor(Math.random() * 100).toString();
+            
+            const embedUrl = new URL(`https://www.youtube.com/embed/${videoId}`);
+            embedUrl.searchParams.set('enablejsapi', '1');
+            embedUrl.searchParams.set('origin', currentOrigin);
+            embedUrl.searchParams.set('start', start);
+            embedUrl.searchParams.set('autoplay', autoplay);
+            embedUrl.searchParams.set('rel', '0');
+            embedUrl.searchParams.set('modestbranding', '1');
+            embedUrl.searchParams.set('playsinline', '1');
+            embedUrl.searchParams.set('widgetid', widgetId);
+            embedUrl.searchParams.set('forigin', currentOrigin + '/');
+            embedUrl.searchParams.set('aoriginsup', '1');
+            embedUrl.searchParams.set('vf', '6');
+            
+            // Set iframe src
+            document.getElementById('youtube-iframe').src = embedUrl.toString();
+        }
+    </script>
+</body>
+</html>
