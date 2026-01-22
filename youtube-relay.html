@@ -98,6 +98,18 @@
             border-bottom: 14px solid transparent;
             margin-left: 4px;
         }
+        .button-container {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+            margin: 1rem auto;
+            flex-wrap: wrap;
+        }
+        .button-container.hidden {
+            display: none;
+        }
         .go-to-reference-btn {
             padding: 0.625rem 1.25rem;
             background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
@@ -113,8 +125,8 @@
             align-items: center;
             justify-content: center;
             gap: 0.5rem;
-            margin: 1rem auto;
             width: fit-content;
+            margin: 0;
         }
         .go-to-reference-btn:hover {
             transform: translateY(-2px);
@@ -142,8 +154,8 @@
             align-items: center;
             justify-content: center;
             gap: 0.5rem;
-            margin: 1rem auto;
             width: fit-content;
+            margin: 0;
         }
         .play-pause-btn:hover {
             transform: translateY(-2px);
@@ -156,12 +168,13 @@
         .play-pause-btn.hidden {
             display: none;
         }
-        /* Hide YouTube suggestion overlays when paused */
+        /* Try to hide YouTube suggestion overlays - limited due to iframe restrictions */
+        #youtube-player {
+            overflow: hidden;
+        }
         #youtube-player iframe {
             pointer-events: auto;
         }
-        /* Try to hide overlays using CSS - YouTube uses iframe so we can't directly target, 
-           but we can use JavaScript to send commands */
     </style>
 </head>
 <body>
@@ -174,17 +187,17 @@
     <!-- YouTube player - hidden until button is clicked -->
     <div id="youtube-player"></div>
 
-    <!-- Go to reference button - below the player -->
-    <button id="go-to-reference-btn" class="go-to-reference-btn hidden">
-        <span>🎯</span>
-        <span>Go to reference</span>
-    </button>
-
-    <!-- Play/Pause toggle button - below the player -->
-    <button id="play-pause-btn" class="play-pause-btn hidden">
-        <span id="play-pause-icon">⏸️</span>
-        <span id="play-pause-text">Pause</span>
-    </button>
+    <!-- Button container - both buttons in same row -->
+    <div id="button-container" class="button-container hidden">
+        <button id="go-to-reference-btn" class="go-to-reference-btn hidden">
+            <span>🎯</span>
+            <span>Go to reference</span>
+        </button>
+        <button id="play-pause-btn" class="play-pause-btn hidden">
+            <span id="play-pause-icon">⏸️</span>
+            <span id="play-pause-text">Pause</span>
+        </button>
+    </div>
 
     <!-- Load YouTube iframe API -->
     <script src="https://www.youtube.com/iframe_api"></script>
@@ -244,6 +257,7 @@
             const thumbnailContainer = document.getElementById('thumbnail-container');
             const thumbnailImage = document.getElementById('thumbnail-image');
             const playerContainer = document.getElementById('youtube-player');
+            const buttonContainer = document.getElementById('button-container');
             const goToBtn = document.getElementById('go-to-reference-btn');
             const playPauseBtn = document.getElementById('play-pause-btn');
             const playPauseIcon = document.getElementById('play-pause-icon');
@@ -259,8 +273,9 @@
             // Extract timestamp
             const timestamp = extractTimestamp(timestampParam);
 
-            // Show "Go to reference" button if timestamp is provided
+            // Show button container and buttons if needed
             if (timestamp !== null && timestamp > 0) {
+                buttonContainer.classList.remove('hidden');
                 goToBtn.classList.remove('hidden');
             }
 
@@ -303,12 +318,13 @@
                             start: startSeconds,
                             autoplay: 0,
                             rel: 0, // Don't show related videos from other channels
-                            modestbranding: 1,
+                            modestbranding: 1, // Minimal YouTube branding
                             playsinline: 1,
                             iv_load_policy: 3, // Hide video annotations
                             controls: 1, // Show player controls
                             fs: 1, // Allow fullscreen
                             cc_load_policy: 0, // Hide captions by default
+                            disablekb: 0, // Allow keyboard controls
                         },
                         events: {
                             onReady: function(event) {
@@ -329,7 +345,8 @@
                                     wrapper.style.height = '100%';
                                 }
 
-                                // Show play/pause button
+                                // Show button container and play/pause button
+                                buttonContainer.classList.remove('hidden');
                                 playPauseBtn.classList.remove('hidden');
                                 updatePlayPauseButton();
 
@@ -343,7 +360,7 @@
                                 // YT.PlayerState.PLAYING = 1, YT.PlayerState.PAUSED = 2, YT.PlayerState.ENDED = 0
                                 isPlaying = (event.data === YT.PlayerState.PLAYING);
                                 updatePlayPauseButton();
-                                
+
                                 // When paused, try to hide overlays
                                 if (event.data === YT.PlayerState.PAUSED || event.data === YT.PlayerState.ENDED) {
                                     hideVideoOverlays();
@@ -418,19 +435,58 @@
             // Function to hide video overlays (suggestions)
             function hideVideoOverlays() {
                 if (!player || !playerReady) return;
-                
+
                 try {
-                    // Try to send commands to hide overlays
-                    // Note: YouTube's iframe API has limited control over overlays
-                    // We can try to seek slightly to refresh the frame and reduce overlay persistence
-                    const currentTime = player.getCurrentTime();
-                    if (currentTime > 0.1) {
-                        // Small seek to refresh frame (this sometimes helps reduce overlay persistence)
-                        player.seekTo(currentTime, true);
-                        player.pauseVideo();
+                    const iframe = player.getIframe();
+                    if (iframe) {
+                        // Try to inject CSS to hide overlays (limited effectiveness due to iframe restrictions)
+                        // Note: This may not work due to cross-origin restrictions, but we try anyway
+                        try {
+                            const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                            // Try to hide common overlay selectors
+                            const style = iframeDoc.createElement('style');
+                            style.textContent = `
+                                .ytp-endscreen-content,
+                                .ytp-ce-element,
+                                .ytp-pause-overlay-container,
+                                .ytp-suggested-action,
+                                .ytp-endscreen-next,
+                                .html5-endscreen,
+                                .ytp-ce-shadow,
+                                .ytp-ce-overlay,
+                                [class*="endscreen"],
+                                [class*="suggested"],
+                                [id*="endscreen"],
+                                [id*="suggested"] {
+                                    display: none !important;
+                                    visibility: hidden !important;
+                                    opacity: 0 !important;
+                                    pointer-events: none !important;
+                                }
+                            `;
+                            if (!iframeDoc.head.querySelector('style[data-overlay-hide]')) {
+                                style.setAttribute('data-overlay-hide', 'true');
+                                iframeDoc.head.appendChild(style);
+                            }
+                        } catch (e) {
+                            // Cross-origin restriction - can't access iframe content
+                            // This is expected and normal
+                        }
+
+                        // Alternative: Try to refresh the frame slightly to reduce overlay persistence
+                        const currentTime = player.getCurrentTime();
+                        if (currentTime > 0.1) {
+                            // Very small seek (0.01 seconds) to refresh without noticeable jump
+                            player.seekTo(currentTime + 0.01, true);
+                            setTimeout(() => {
+                                if (!isPlaying) {
+                                    player.pauseVideo();
+                                }
+                            }, 50);
+                        }
                     }
                 } catch (e) {
-                    console.log('Could not hide overlays:', e);
+                    // Silently fail - overlays are hard to control
                 }
             }
 
@@ -452,12 +508,15 @@
                 }
             };
 
-            // Periodically try to hide overlays when paused (every 2 seconds)
+            // Periodically try to hide overlays when paused (every 1 second for better effectiveness)
             setInterval(function() {
                 if (playerReady && player && !isPlaying) {
                     hideVideoOverlays();
                 }
-            }, 2000);
+            }, 1000);
+
+            // Also try to hide overlays immediately when state changes to paused
+            // This is handled in onStateChange callback
         }
     </script>
 </body>
