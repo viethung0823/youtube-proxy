@@ -271,10 +271,14 @@
             // Extract timestamp
             const timestamp = extractTimestamp(timestampParam);
 
-            // Show button container and buttons if needed
+            // Show "Go to reference" button if timestamp is provided
+            // Play/pause button will only show when player is loaded
             if (timestamp !== null && timestamp > 0) {
-                buttonContainer.classList.remove('hidden');
                 goToBtn.classList.remove('hidden');
+                // Only show container if there's a button to show
+                if (!goToBtn.classList.contains('hidden')) {
+                    buttonContainer.classList.remove('hidden');
+                }
             }
 
             // Function to load the YouTube player
@@ -343,9 +347,9 @@
                                     wrapper.style.height = '100%';
                                 }
 
-                                // Show button container and play/pause button
-                                buttonContainer.classList.remove('hidden');
+                                // Show play/pause button and button container when player is ready
                                 playPauseBtn.classList.remove('hidden');
+                                buttonContainer.classList.remove('hidden');
                                 updatePlayPauseButton();
 
                                 // If timestamp is provided and start is 0, seek to timestamp on ready (but don't autoplay)
