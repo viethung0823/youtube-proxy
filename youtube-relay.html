@@ -22,6 +22,56 @@
         #youtube-player {
             width: 100%;
             height: 100%;
+            display: none;
+        }
+        #youtube-player.loaded {
+            display: block;
+        }
+        .thumbnail-container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            background: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+        .thumbnail-container.hidden {
+            display: none;
+        }
+        .thumbnail-image {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            background: #000;
+        }
+        .thumbnail-play-button {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 68px;
+            height: 48px;
+            background: rgba(23, 35, 34, 0.9);
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .thumbnail-play-button:hover {
+            background: rgba(255, 0, 0, 0.9);
+        }
+        .thumbnail-play-button::before {
+            content: '';
+            width: 0;
+            height: 0;
+            border-left: 24px solid #fff;
+            border-top: 14px solid transparent;
+            border-bottom: 14px solid transparent;
+            margin-left: 4px;
         }
         .go-to-reference-btn {
             position: absolute;
@@ -56,6 +106,13 @@
     </style>
 </head>
 <body>
+    <!-- Thumbnail container - shown initially -->
+    <div id="thumbnail-container" class="thumbnail-container">
+        <img id="thumbnail-image" class="thumbnail-image" alt="Video thumbnail" />
+        <div class="thumbnail-play-button"></div>
+    </div>
+    
+    <!-- YouTube player - hidden until button is clicked -->
     <div id="youtube-player"></div>
     <button id="go-to-reference-btn" class="go-to-reference-btn hidden">
         <span>🎯</span>
@@ -106,6 +163,7 @@
 
         let player = null;
         let playerReady = false;
+        let playerLoaded = false;
 
         if (!videoId) {
             document.body.textContent = 'Missing video ID parameter. Use ?v=VIDEO_ID';
@@ -113,68 +171,119 @@
             document.body.style.padding = '20px';
             document.body.style.fontFamily = 'Arial, sans-serif';
         } else {
-            // Show "Go to reference" button if timestamp is provided
-            const timestamp = extractTimestamp(timestampParam);
+            // Show thumbnail initially
+            const thumbnailContainer = document.getElementById('thumbnail-container');
+            const thumbnailImage = document.getElementById('thumbnail-image');
+            const playerContainer = document.getElementById('youtube-player');
             const goToBtn = document.getElementById('go-to-reference-btn');
+            
+            // Set thumbnail image URL (max quality)
+            thumbnailImage.src = `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
+            thumbnailImage.onerror = function() {
+                // Fallback to standard quality if maxresdefault doesn't exist
+                this.src = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+            };
 
+            // Extract timestamp
+            const timestamp = extractTimestamp(timestampParam);
+            
+            // Show "Go to reference" button if timestamp is provided
             if (timestamp !== null && timestamp > 0) {
                 goToBtn.classList.remove('hidden');
-                goToBtn.onclick = function() {
-                    if (playerReady && player) {
-                        player.seekTo(timestamp, true); // true = allow seeking, but we'll play manually
-                        player.playVideo(); // Explicitly play after seeking
-                        console.log('Seeking to timestamp:', timestamp);
-                    }
-                };
             }
 
-            // Wait for YouTube API to load
-            function onYouTubeIframeAPIReady() {
-                const currentOrigin = window.location.origin;
-                const startSeconds = parseInt(startParam) || 0;
+            // Function to load the YouTube player
+            function loadYouTubePlayer() {
+                if (playerLoaded) return;
+                playerLoaded = true;
 
-                // Use YouTube iframe API - same as in your component
-                // This uses the same API that doesn't show ads
-                player = new YT.Player('youtube-player', {
-                    videoId: videoId,
-                    playerVars: {
-                        enablejsapi: 1,
-                        origin: currentOrigin,
-                        start: startSeconds,
-                        autoplay: 0,
-                        rel: 0,
-                        modestbranding: 1,
-                        playsinline: 1,
-                    },
-                    events: {
-                        onReady: function(event) {
-                            playerReady = true;
-                            console.log('YouTube player ready in relay');
-                            // Set referrer policy on the iframe
-                            const iframe = event.target.getIframe();
-                            if (iframe) {
-                                iframe.setAttribute('referrerpolicy', 'strict-origin-when-cross-origin');
-                            }
+                // Hide thumbnail, show player
+                thumbnailContainer.classList.add('hidden');
+                playerContainer.classList.add('loaded');
 
-                            // If timestamp is provided and start is 0, seek to timestamp on ready (but don't autoplay)
-                            if (timestamp !== null && timestamp > 0 && startSeconds === 0) {
-                                event.target.seekTo(timestamp, false); // false = don't autoplay
-                            }
+                // Load YouTube API if not already loaded
+                if (!window.YT || !window.YT.Player) {
+                    const script = document.createElement('script');
+                    script.src = 'https://www.youtube.com/iframe_api';
+                    document.head.appendChild(script);
+                }
+
+                // Wait for YouTube API to load
+                function onYouTubeIframeAPIReady() {
+                    const currentOrigin = window.location.origin;
+                    const startSeconds = parseInt(startParam) || 0;
+
+                    // Use YouTube iframe API - same as in your component
+                    // This uses the same API that doesn't show ads
+                    player = new YT.Player('youtube-player', {
+                        videoId: videoId,
+                        playerVars: {
+                            enablejsapi: 1,
+                            origin: currentOrigin,
+                            start: startSeconds,
+                            autoplay: 0,
+                            rel: 0,
+                            modestbranding: 1,
+                            playsinline: 1,
                         },
-                        onError: function(event) {
-                            console.error('YouTube player error:', event.data);
+                        events: {
+                            onReady: function(event) {
+                                playerReady = true;
+                                console.log('YouTube player ready in relay');
+                                // Set referrer policy on the iframe
+                                const iframe = event.target.getIframe();
+                                if (iframe) {
+                                    iframe.setAttribute('referrerpolicy', 'strict-origin-when-cross-origin');
+                                }
+
+                                // If timestamp is provided and start is 0, seek to timestamp on ready (but don't autoplay)
+                                if (timestamp !== null && timestamp > 0 && startSeconds === 0) {
+                                    event.target.seekTo(timestamp, false); // false = don't autoplay
+                                }
+                            },
+                            onError: function(event) {
+                                console.error('YouTube player error:', event.data);
+                            }
                         }
-                    }
-                });
+                    });
+                }
+
+                // If API is already loaded
+                if (window.YT && window.YT.Player) {
+                    onYouTubeIframeAPIReady();
+                } else {
+                    // Wait for API to load
+                    window.onYouTubeIframeAPIReady = onYouTubeIframeAPIReady;
+                }
             }
 
-            // If API is already loaded
-            if (window.YT && window.YT.Player) {
-                onYouTubeIframeAPIReady();
-            } else {
-                // Wait for API to load
-                window.onYouTubeIframeAPIReady = onYouTubeIframeAPIReady;
-            }
+            // "Go to reference" button click - loads player and seeks to timestamp
+            goToBtn.onclick = function() {
+                loadYouTubePlayer();
+                // Wait a bit for player to initialize, then seek
+                setTimeout(function() {
+                    if (playerReady && player && timestamp !== null) {
+                        player.seekTo(timestamp, true);
+                        player.playVideo();
+                        console.log('Seeking to timestamp:', timestamp);
+                    } else if (!playerReady) {
+                        // Retry if player not ready yet
+                        const checkInterval = setInterval(function() {
+                            if (playerReady && player && timestamp !== null) {
+                                clearInterval(checkInterval);
+                                player.seekTo(timestamp, true);
+                                player.playVideo();
+                                console.log('Seeking to timestamp:', timestamp);
+                            }
+                        }, 100);
+                    }
+                }, 500);
+            };
+
+            // Thumbnail click - just loads the player (no seeking)
+            thumbnailContainer.onclick = function() {
+                loadYouTubePlayer();
+            };
         }
     </script>
 </body>
