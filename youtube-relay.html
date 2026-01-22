@@ -61,10 +61,10 @@
         <span>🎯</span>
         <span>Go to reference</span>
     </button>
-    
+
     <!-- Load YouTube iframe API -->
     <script src="https://www.youtube.com/iframe_api"></script>
-    
+
     <script>
         // Helper function to extract timestamp from URL or time string
         function extractTimestamp(url) {
@@ -103,7 +103,7 @@
         const videoId = urlParams.get('v');
         const timestampParam = urlParams.get('timestamp') || urlParams.get('t');
         const startParam = urlParams.get('start') || '0';
-        
+
         let player = null;
         let playerReady = false;
 
@@ -116,13 +116,13 @@
             // Show "Go to reference" button if timestamp is provided
             const timestamp = extractTimestamp(timestampParam);
             const goToBtn = document.getElementById('go-to-reference-btn');
-            
+
             if (timestamp !== null && timestamp > 0) {
                 goToBtn.classList.remove('hidden');
                 goToBtn.onclick = function() {
                     if (playerReady && player) {
-                        player.seekTo(timestamp, true);
-                        player.playVideo();
+                        player.seekTo(timestamp, true); // true = allow seeking, but we'll play manually
+                        player.playVideo(); // Explicitly play after seeking
                         console.log('Seeking to timestamp:', timestamp);
                     }
                 };
@@ -132,7 +132,7 @@
             function onYouTubeIframeAPIReady() {
                 const currentOrigin = window.location.origin;
                 const startSeconds = parseInt(startParam) || 0;
-                
+
                 // Use YouTube iframe API - same as in your component
                 // This uses the same API that doesn't show ads
                 player = new YT.Player('youtube-player', {
@@ -155,10 +155,10 @@
                             if (iframe) {
                                 iframe.setAttribute('referrerpolicy', 'strict-origin-when-cross-origin');
                             }
-                            
-                            // If timestamp is provided and start is 0, seek to timestamp on ready
+
+                            // If timestamp is provided and start is 0, seek to timestamp on ready (but don't autoplay)
                             if (timestamp !== null && timestamp > 0 && startSeconds === 0) {
-                                event.target.seekTo(timestamp, true);
+                                event.target.seekTo(timestamp, false); // false = don't autoplay
                             }
                         },
                         onError: function(event) {
@@ -167,7 +167,7 @@
                     }
                 });
             }
-            
+
             // If API is already loaded
             if (window.YT && window.YT.Player) {
                 onYouTubeIframeAPIReady();
