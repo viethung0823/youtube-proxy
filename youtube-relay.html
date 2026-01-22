@@ -169,6 +169,10 @@
             display: none;
         }
         /* Try to hide YouTube suggestion overlays - limited due to iframe restrictions */
+        /* Note: CSS in this page cannot style elements inside the YouTube iframe due to cross-origin restrictions */
+        /* The .ytp-pause-overlay class is inside the iframe, so this won't work: */
+        /* .ytp-pause-overlay { display: none; } */
+        /* Instead, we try to inject CSS into the iframe via JavaScript (see hideVideoOverlays function) */
         #youtube-player {
             overflow: hidden;
         }
@@ -446,6 +450,7 @@
                             // Try to hide common overlay selectors
                             const style = iframeDoc.createElement('style');
                             style.textContent = `
+                                .ytp-pause-overlay,
                                 .ytp-endscreen-content,
                                 .ytp-ce-element,
                                 .ytp-pause-overlay-container,
@@ -454,10 +459,13 @@
                                 .html5-endscreen,
                                 .ytp-ce-shadow,
                                 .ytp-ce-overlay,
+                                .ytp-pause-overlay-container,
+                                [class*="pause-overlay"],
                                 [class*="endscreen"],
                                 [class*="suggested"],
                                 [id*="endscreen"],
-                                [id*="suggested"] {
+                                [id*="suggested"],
+                                [id*="pause-overlay"] {
                                     display: none !important;
                                     visibility: hidden !important;
                                     opacity: 0 !important;
