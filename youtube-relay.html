@@ -388,6 +388,12 @@
                         player.seekTo(timestamp, true);
                         player.playVideo();
                         console.log('Seeking to timestamp:', timestamp);
+                        // Focus on the player iframe after seeking
+                        const iframe = player.getIframe();
+                        if (iframe) {
+                            iframe.focus();
+                            console.log('Player focused');
+                        }
                     } else if (!playerReady) {
                         // Retry if player not ready yet
                         const checkInterval = setInterval(function() {
@@ -396,6 +402,12 @@
                                 player.seekTo(timestamp, true);
                                 player.playVideo();
                                 console.log('Seeking to timestamp:', timestamp);
+                                // Focus on the player iframe after seeking
+                                const iframe = player.getIframe();
+                                if (iframe) {
+                                    iframe.focus();
+                                    console.log('Player focused');
+                                }
                             }
                         }, 100);
                     }
