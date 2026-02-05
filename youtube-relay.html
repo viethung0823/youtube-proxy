@@ -336,7 +336,6 @@
                                 const iframe = event.target.getIframe();
                                 if (iframe) {
                                     iframe.setAttribute('referrerpolicy', 'strict-origin-when-cross-origin');
-                                    iframe.setAttribute('tabindex', '0');
                                     // Ensure iframe fills container
                                     iframe.style.width = '100%';
                                     iframe.style.height = '100%';
@@ -382,9 +381,6 @@
 
             // "Go to reference" button click - loads player and seeks to timestamp
             goToBtn.onclick = function() {
-                // Remove focus from the button
-                this.blur();
-
                 loadYouTubePlayer();
                 // Wait a bit for player to initialize, then seek
                 setTimeout(function() {
@@ -392,15 +388,6 @@
                         player.seekTo(timestamp, true);
                         player.playVideo();
                         console.log('Seeking to timestamp:', timestamp);
-                        // Focus and click on the player iframe to activate keyboard controls
-                        setTimeout(function() {
-                            const iframe = player.getIframe();
-                            if (iframe) {
-                                iframe.focus();
-                                iframe.click();
-                                console.log('Player focused and clicked to activate keyboard controls');
-                            }
-                        }, 100);
                     } else if (!playerReady) {
                         // Retry if player not ready yet
                         const checkInterval = setInterval(function() {
@@ -409,15 +396,6 @@
                                 player.seekTo(timestamp, true);
                                 player.playVideo();
                                 console.log('Seeking to timestamp:', timestamp);
-                                // Focus and click on the player iframe to activate keyboard controls
-                                setTimeout(function() {
-                                    const iframe = player.getIframe();
-                                    if (iframe) {
-                                        iframe.focus();
-                                        iframe.click();
-                                        console.log('Player focused and clicked to activate keyboard controls');
-                                    }
-                                }, 100);
                             }
                         }, 100);
                     }
