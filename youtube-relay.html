@@ -436,12 +436,13 @@
 
             // Listen for messages from parent window (for cross-origin keyboard shortcuts)
             window.addEventListener('message', function(event) {
+                console.log("event", event)
                 // Handle keypress messages from parent
                 if (event.data && event.data.type === 'keypress') {
                     const key = event.data.key;
                     console.log('[Shortcut Iframe] Received keypress from parent:', key);
 
-                    if (key === 'i') {
+                    if (key === ';') {
                         // Click the go-to-reference button if it exists
                         if (!goToBtn.classList.contains('hidden')) {
                             goToBtn.click();
@@ -475,10 +476,10 @@
 
                 const key = event.key.toLowerCase();
 
-                // "I" key - Click "Go to reference" button and focus YouTube iframe
-                if (key === 'i') {
+                // ";" key - Click "Go to reference" button and focus YouTube iframe
+                if (key === ';') {
                     event.preventDefault();
-                    console.log('[Shortcut] "I" pressed - clicking go-to-reference button');
+                    console.log('[Shortcut] ";" pressed - clicking go-to-reference button');
 
                     // Click the go-to-reference button if it exists
                     if (!goToBtn.classList.contains('hidden')) {
@@ -500,7 +501,7 @@
 
             console.log('[Shortcut] YouTube relay keyboard shortcuts initialized');
             console.log('[Shortcut] Available shortcuts:');
-            console.log('  - I: Click "Go to reference" button and focus iframe');
+            console.log('  - ; (semicolon): Click "Go to reference" button and focus iframe');
         }
     </script>
 </body>
