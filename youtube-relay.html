@@ -336,6 +336,7 @@
                                 const iframe = event.target.getIframe();
                                 if (iframe) {
                                     iframe.setAttribute('referrerpolicy', 'strict-origin-when-cross-origin');
+                                    iframe.setAttribute('tabindex', '0');
                                     // Ensure iframe fills container
                                     iframe.style.width = '100%';
                                     iframe.style.height = '100%';
@@ -388,12 +389,14 @@
                         player.seekTo(timestamp, true);
                         player.playVideo();
                         console.log('Seeking to timestamp:', timestamp);
-                        // Focus on the player iframe after seeking
-                        const iframe = player.getIframe();
-                        if (iframe) {
-                            iframe.focus();
-                            console.log('Player focused');
-                        }
+                        // Click on the player iframe to activate keyboard controls
+                        setTimeout(function() {
+                            const iframe = player.getIframe();
+                            if (iframe) {
+                                iframe.click();
+                                console.log('Player clicked to activate keyboard controls');
+                            }
+                        }, 100);
                     } else if (!playerReady) {
                         // Retry if player not ready yet
                         const checkInterval = setInterval(function() {
@@ -402,12 +405,14 @@
                                 player.seekTo(timestamp, true);
                                 player.playVideo();
                                 console.log('Seeking to timestamp:', timestamp);
-                                // Focus on the player iframe after seeking
-                                const iframe = player.getIframe();
-                                if (iframe) {
-                                    iframe.focus();
-                                    console.log('Player focused');
-                                }
+                                // Click on the player iframe to activate keyboard controls
+                                setTimeout(function() {
+                                    const iframe = player.getIframe();
+                                    if (iframe) {
+                                        iframe.click();
+                                        console.log('Player clicked to activate keyboard controls');
+                                    }
+                                }, 100);
                             }
                         }, 100);
                     }
