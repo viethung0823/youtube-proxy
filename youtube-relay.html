@@ -433,6 +433,57 @@
             playPauseBtn.onclick = function() {
                 togglePlayPause();
             };
+
+            // Keyboard shortcuts
+            document.addEventListener('keydown', function(event) {
+                // Ignore if user is typing in an input field
+                const activeElement = document.activeElement;
+                const isInputField = activeElement && (
+                    activeElement.tagName === 'INPUT' ||
+                    activeElement.tagName === 'TEXTAREA' ||
+                    activeElement.isContentEditable
+                );
+
+                if (isInputField) {
+                    return;
+                }
+
+                const key = event.key.toLowerCase();
+
+                // "I" key - Click "Go to reference" button and focus YouTube iframe
+                if (key === 'i') {
+                    event.preventDefault();
+                    console.log('[Shortcut] "I" pressed - clicking go-to-reference button');
+
+                    // Click the go-to-reference button if it exists
+                    if (!goToBtn.classList.contains('hidden')) {
+                        goToBtn.click();
+
+                        // Focus on the YouTube iframe after a short delay
+                        setTimeout(function() {
+                            const iframe = playerContainer.querySelector('iframe');
+                            if (iframe) {
+                                iframe.focus();
+                                console.log('[Shortcut] Focused on YouTube iframe');
+                            }
+                        }, 600);
+                    } else {
+                        console.log('[Shortcut] go-to-reference button is hidden');
+                    }
+                }
+
+                // "K" key - Toggle play/pause (YouTube's native shortcut)
+                if (key === 'k') {
+                    event.preventDefault();
+                    console.log('[Shortcut] "K" pressed - toggling play/pause');
+                    togglePlayPause();
+                }
+            });
+
+            console.log('[Shortcut] YouTube relay keyboard shortcuts initialized');
+            console.log('[Shortcut] Available shortcuts:');
+            console.log('  - I: Click "Go to reference" button and focus iframe');
+            console.log('  - K: Toggle play/pause');
         }
     </script>
 </body>
